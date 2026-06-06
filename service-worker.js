@@ -1,8 +1,12 @@
 // Bump CACHE_VERSION whenever shell files change so updates roll cleanly.
-const CACHE_VERSION = 'v0.2.1';
+const CACHE_VERSION = 'v0.3.0';
 const CACHE_NAME = `breathe-shell-${CACHE_VERSION}`;
 
-const SHELL = [
+// Google Fonts stylesheet for Cormorant Garamond. The woff2 files it references
+// are cached on first use by the fetch handler below (they're CORS-enabled).
+const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,300;1,400;1,500&display=swap';
+
+const LOCAL_SHELL = [
   './',
   './index.html',
   './styles.css',
@@ -12,13 +16,14 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      // {cache:'reload'} bypasses the browser HTTP cache so we always precache
-      // the freshest shell on install, never a stale copy.
-      cache.addAll(SHELL.map((url) => new Request(url, { cache: 'reload' })))
-    )
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // {cache:'reload'} bypasses the browser HTTP cache so we precache the
+    // freshest shell on install, never a stale copy.
+    await cache.addAll(LOCAL_SHELL.map((url) => new Request(url, { cache: 'reload' })));
+    // Best-effort: don't fail the install if the font fetch is unavailable.
+    await Promise.allSettled([cache.add(new Request(FONT_CSS, { cache: 'reload' }))]);
+  })());
   self.skipWaiting();
 });
 
@@ -34,7 +39,8 @@ self.addEventListener('activate', (event) => {
 
 // Network-first with cache fallback. Same-origin shell files are fetched with
 // {cache:'reload'} so the browser HTTP cache can never serve a stale app.js /
-// styles.css — updated code shows up on the next load instead of lingering.
+// styles.css. Any successful GET (including the Google Fonts CSS + woff2) is
+// cached, so the app — and its fonts — work offline after the first load.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const sameOrigin = new URL(event.request.url).origin === self.location.origin;

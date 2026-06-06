@@ -4,63 +4,95 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="A calm 4-7-8 breathing guide.">
-  <link rel="stylesheet" href="./styles.css">
   <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#1c2541">
+  <meta name="theme-color" id="theme-color-meta" content="#181339">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Breathe">
   <title>Breathe</title>
+
+  <!-- Pick the colourway by time of day before first paint (no flash of the
+       wrong theme): Aubade 06:00–18:00, Celeste in the evening/night. -->
+  <script>
+    (function () {
+      var h = new Date().getHours();
+      var night = (h >= 18 || h < 6);
+      var cls = night ? 't-celeste' : 't-aubade';
+      try { if (localStorage.getItem('breathe.muted') === '1') cls += ' muted'; } catch (e) {}
+      document.documentElement.className = cls;
+      document.documentElement.dataset.themeColor = night ? '#181339' : '#e89a78';
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,300;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <main id="app">
 
-    <!-- Setup screen -->
+    <!-- ===== Setup ===== -->
     <section id="setup" class="screen">
-      <h1 class="title">Breathe</h1>
-      <p class="subtitle">4&nbsp;·&nbsp;7&nbsp;·&nbsp;8 &mdash; in, hold, out</p>
+      <button class="mute" aria-label="Toggle sound">
+        <svg class="ico ico-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.2a9 9 0 0 1 0 13.6"/></svg>
+        <svg class="ico ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+      </button>
 
-      <div class="duration">
-        <span class="duration-label">Session length</span>
-        <div class="stepper">
-          <button id="dur-down" class="step-btn" aria-label="Less time">&minus;</button>
-          <div class="dur-value">
-            <span id="dur-mins">3</span>
-            <span class="dur-unit">min</span>
+      <div class="start-body">
+        <div class="start-orb"></div>
+        <h1 class="brand">Breathe</h1>
+        <p class="brand-sub">4 · 7 · 8 — in · hold · out</p>
+
+        <div class="dur">
+          <span class="dur-cap">Session length</span>
+          <div class="stepper">
+            <button id="dur-down" class="step" aria-label="Less time">&minus;</button>
+            <div class="dur-val"><b id="dur-mins">3</b><small>min</small></div>
+            <button id="dur-up" class="step" aria-label="More time">+</button>
           </div>
-          <button id="dur-up" class="step-btn" aria-label="More time">+</button>
         </div>
-      </div>
 
-      <button id="start-btn" class="start-btn">Start</button>
+        <button id="start-btn" class="start-cta">Begin</button>
+      </div>
     </section>
 
-    <!-- Session screen -->
+    <!-- ===== Session ===== -->
     <section id="session" class="screen" hidden>
-      <div class="orb-wrap">
-        <div id="orb" class="orb"></div>
-        <div class="orb-text">
-          <span id="phase-label" class="phase-label">Ready</span>
-          <span id="phase-count" class="phase-count"></span>
+      <button class="mute" aria-label="Toggle sound">
+        <svg class="ico ico-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.2a9 9 0 0 1 0 13.6"/></svg>
+        <svg class="ico ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+      </button>
+
+      <div class="stage">
+        <div class="stagewrap">
+          <div class="rings" id="rings"></div>
+          <div class="decor" id="decor"></div>
+          <div class="orb" id="orb"></div>
         </div>
       </div>
+
+      <div class="phase-label" id="phase-label">Breathe in</div>
 
       <div class="session-foot">
-        <span id="time-left" class="time-left">3:00</span>
-        <button id="stop-btn" class="stop-btn">Stop</button>
+        <span class="time-left" id="time-left">3:00</span>
+        <button id="stop-btn" class="ghost-btn">End</button>
       </div>
     </section>
 
-    <!-- Done screen -->
+    <!-- ===== Done ===== -->
     <section id="done" class="screen" hidden>
-      <h1 class="title">Nicely done</h1>
-      <p class="subtitle" id="done-sub">You finished your session.</p>
-      <button id="again-btn" class="start-btn">Again</button>
+      <div class="start-body">
+        <div class="start-orb"></div>
+        <h1 class="brand">Nicely done</h1>
+        <p class="brand-sub" id="done-sub">You finished your session.</p>
+        <button id="again-btn" class="start-cta">Again</button>
+      </div>
     </section>
 
   </main>
 
-  <footer class="app-footer"><span id="version">v0.2.1</span></footer>
+  <footer class="app-footer"><span id="version">v0.3.0</span></footer>
 
   <script src="./app.js"></script>
 </body>

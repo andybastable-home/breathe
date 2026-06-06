@@ -8,12 +8,18 @@ Built for installing on a phone home screen — works offline once loaded.
 ## How it works
 
 - One breath cycle is 19 seconds (4 + 7 + 8).
-- Set the session length (default **3 minutes**, range 1–15) with the +/− steppers.
-- The orb grows on the in-breath, holds, and shrinks on the out-breath, with the
-  phase name and a per-phase countdown in the centre.
+- Set the session length (default **3 minutes**, range 1–15) with the +/− steppers,
+  then tap **Begin**.
+- A glowing orb grows on the in-breath, holds, and shrinks on the out-breath, ringed
+  by concentric circles and orbiting stars that sweep wide as you breathe in and
+  settle as you breathe out. The phase name shows below.
+- Two colourways follow the clock: **Aubade** (warm dawn) through the day and
+  **Celeste** (night sky) in the evening, switching at 6pm.
+- A soft chime marks each phase change; tap the speaker icon to mute (remembered).
 - The session ends cleanly on the next phase boundary once your time is up, so it
   never cuts off mid-breath.
-- Your chosen length is remembered (localStorage). No accounts, no backend.
+- Your chosen length and mute preference are remembered (localStorage). No accounts,
+  no backend; works offline once loaded.
 
 ## Run locally
 

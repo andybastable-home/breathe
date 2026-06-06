@@ -1,21 +1,23 @@
 /* ============================================================
    Breathe — 4-7-8 breathing guide
-   Vanilla JS, no build step. Preference persisted in localStorage.
+   Vanilla JS, no build step. The session loop drives --breath every frame;
+   CSS turns that into the orb scale, ring expansion, and shape life. The orbit
+   animation is pure CSS (continuous), so the shapes never stop moving.
    ============================================================ */
 
 // The 4-7-8 technique: inhale 4s, hold 7s, exhale 8s. One cycle = 19s.
-// `scale` is the orb size at the END of the phase (start is the prior phase's end).
-// `c1`/`c2` are the orb gradient colours and `glow` its halo for that phase.
 const PHASES = [
-  { name: 'Breathe in',  secs: 4, scale: 1.0,  c1: '#6fd3c7', c2: '#4a9ed8', glow: 'rgba(111,211,199,.55)' },
-  { name: 'Hold',        secs: 7, scale: 1.0,  c1: '#9d8cf0', c2: '#6a5acd', glow: 'rgba(157,140,240,.55)' },
-  { name: 'Breathe out', secs: 8, scale: 0.55, c1: '#f6b07a', c2: '#ec7c8f', glow: 'rgba(246,176,122,.50)' },
+  { name: 'Breathe in',  secs: 4, type: 'in'   },
+  { name: 'Hold',        secs: 7, type: 'hold' },
+  { name: 'Breathe out', secs: 8, type: 'out'  },
 ];
-const EXHALED_SCALE = PHASES[PHASES.length - 1].scale; // orb size at rest (fully exhaled)
-const CYCLE_SECS = PHASES.reduce((t, p) => t + p.secs, 0); // 19
 const MIN_MINUTES = 1;
 const MAX_MINUTES = 15;
-const STORAGE_KEY = 'breathe.minutes';
+const KEY_MIN = 'breathe.minutes';
+const KEY_MUTE = 'breathe.muted';
+
+const root = document.documentElement;
+const easeInOutSine = (x) => -(Math.cos(Math.PI * x) - 1) / 2;
 
 // ---- DOM ----
 const screens = {
@@ -24,9 +26,7 @@ const screens = {
   done: document.getElementById('done'),
 };
 const durMinsEl = document.getElementById('dur-mins');
-const orb = document.getElementById('orb');
 const phaseLabel = document.getElementById('phase-label');
-const phaseCount = document.getElementById('phase-count');
 const timeLeftEl = document.getElementById('time-left');
 const doneSub = document.getElementById('done-sub');
 
@@ -35,59 +35,104 @@ let minutes = loadMinutes();
 let session = null; // { totalMs, startTs, phaseIdx, phaseStartTs, rafId }
 
 durMinsEl.textContent = minutes;
+syncThemeColor();
 
-// ---- Setup screen ----
+// ---- Preferences ----
 function loadMinutes() {
-  const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
-  if (Number.isFinite(saved)) return clampMinutes(saved);
-  return 3; // default 3 minutes
+  const saved = parseInt(localStorage.getItem(KEY_MIN), 10);
+  return Number.isFinite(saved) ? clampMinutes(saved) : 3; // default 3 minutes
 }
-function clampMinutes(m) {
-  return Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, m));
-}
+function clampMinutes(m) { return Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, m)); }
 function setMinutes(m) {
   minutes = clampMinutes(m);
   durMinsEl.textContent = minutes;
-  localStorage.setItem(STORAGE_KEY, String(minutes));
+  localStorage.setItem(KEY_MIN, String(minutes));
 }
 
+// ---- Listeners ----
 document.getElementById('dur-up').addEventListener('click', () => setMinutes(minutes + 1));
 document.getElementById('dur-down').addEventListener('click', () => setMinutes(minutes - 1));
 document.getElementById('start-btn').addEventListener('click', startSession);
 document.getElementById('again-btn').addEventListener('click', () => showScreen('setup'));
 document.getElementById('stop-btn').addEventListener('click', () => endSession(false));
+document.querySelectorAll('.mute').forEach((b) => b.addEventListener('click', toggleMute));
 
 function showScreen(name) {
-  for (const [key, el] of Object.entries(screens)) {
-    el.hidden = key !== name;
-  }
+  for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
 }
 
-// ---- Session ----
+// ---- Mute ----
+function toggleMute() {
+  const muted = !root.classList.contains('muted');
+  root.classList.toggle('muted', muted);
+  localStorage.setItem(KEY_MUTE, muted ? '1' : '0');
+  if (!muted) ensureAudio(); // unlock audio inside this click gesture
+}
+
+// ---- Set the address/status-bar colour to match the colourway ----
+function syncThemeColor() {
+  const meta = document.getElementById('theme-color-meta');
+  if (meta && root.dataset.themeColor) meta.setAttribute('content', root.dataset.themeColor);
+}
+
+// ============================================================
+// Decorative stage: 3 rings + 9 orbiting shapes (stars / motes)
+// ============================================================
+const RING_SPEC = [ { k: .4, of: .9 }, { k: .75, of: .62 }, { k: 1.1, of: .42 } ];
+const SHAPE_SVG = {
+  star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></svg>',
+  mote: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>',
+};
+
+function buildStage() {
+  const rings = document.getElementById('rings');
+  const decor = document.getElementById('decor');
+  const type = root.classList.contains('t-celeste') ? 'star' : 'mote';
+
+  for (const s of RING_SPEC) {
+    const r = document.createElement('span');
+    r.className = 'ring';
+    r.style.setProperty('--k', s.k);
+    r.style.setProperty('--of', s.of);
+    rings.appendChild(r);
+  }
+
+  const N = 9;
+  for (let i = 0; i < N; i++) {
+    const ringK = RING_SPEC[i % RING_SPEC.length].k; // spread evenly across rings
+
+    const orbit = document.createElement('div');
+    orbit.className = 'orbit';
+    orbit.style.setProperty('--dur', (20 + Math.random() * 22).toFixed(1) + 's');
+    orbit.style.setProperty('--dir', Math.random() < 0.5 ? 'normal' : 'reverse');
+    orbit.style.animationDelay = '-' + (Math.random() * 40).toFixed(1) + 's'; // random start angle
+
+    const sp = document.createElement('span');
+    sp.className = 'shape' + (type === 'star' ? ' spin' : '');
+    sp.style.setProperty('--ring-k', ringK);
+    sp.style.setProperty('--sz', (0.05 + Math.random() * 0.035).toFixed(3)); // size as fraction of orb
+    sp.style.setProperty('--so', (0.7 + Math.random() * 0.3).toFixed(2));
+    sp.style.setProperty('--twdur', (12 + Math.random() * 10).toFixed(1) + 's');
+    sp.innerHTML = SHAPE_SVG[type];
+
+    orbit.appendChild(sp);
+    decor.appendChild(orbit);
+  }
+}
+buildStage(); // build the decorative stage once, now that RING_SPEC exists
+
+// ============================================================
+// Session
+// ============================================================
 function startSession() {
   ensureAudio(); // create/resume the AudioContext inside the click gesture
-  showScreen('session');
+  root.style.setProperty('--breath', '0'); // start fully exhaled
   phaseLabel.textContent = 'Breathe in';
-  phaseCount.textContent = '';
+  showScreen('session');
   keepAwake();
 
-  // Snap the orb to its fully exhaled size with no animation first. Going from
-  // display:none to visible and changing --scale in the same frame would skip
-  // the transition, so the first breath-in would pop to full size instead of
-  // visibly growing. Reset + force a reflow, then animate on the next frame.
-  orb.style.transition = 'none';
-  orb.style.setProperty('--scale', EXHALED_SCALE);
-  void orb.offsetWidth; // force reflow so the reset takes hold immediately
-  orb.style.transition = ''; // restore the CSS transition (transform linear)
-
   requestAnimationFrame((now) => {
-    session = {
-      totalMs: minutes * 60 * 1000,
-      startTs: now,
-      phaseIdx: -1, // advancePhase() bumps this to 0
-      phaseStartTs: now,
-      rafId: 0,
-    };
+    session = { totalMs: minutes * 60 * 1000, startTs: now, phaseIdx: -1, phaseStartTs: now, rafId: 0 };
     advancePhase(now); // enter the first phase
     tick();
   });
@@ -96,45 +141,30 @@ function startSession() {
 function advancePhase(now) {
   session.phaseIdx = (session.phaseIdx + 1) % PHASES.length;
   session.phaseStartTs = now;
-  const phase = PHASES[session.phaseIdx];
-
-  // Size the orb toward this phase's target over its full duration. The two
-  // durations map to the CSS transition properties in order: transform (full
-  // phase) then box-shadow (a quick 600ms glow cross-fade).
-  phaseLabel.textContent = phase.name;
-  orb.style.transitionDuration = phase.secs + 's, 600ms';
-  orb.style.setProperty('--scale', phase.scale);
-
-  // Recolour the orb for this phase.
-  orb.style.setProperty('--orb-1', phase.c1);
-  orb.style.setProperty('--orb-2', phase.c2);
-  orb.style.setProperty('--glow', phase.glow);
-
+  phaseLabel.textContent = PHASES[session.phaseIdx].name;
   ding();
   vibrate();
 }
 
 function tick() {
   const now = performance.now();
-  const totalElapsed = now - session.startTs;
-  const remaining = Math.max(0, session.totalMs - totalElapsed);
-
-  // Time-left clock
+  const remaining = Math.max(0, session.totalMs - (now - session.startTs));
   timeLeftEl.textContent = formatClock(Math.ceil(remaining / 1000));
 
-  // Phase countdown (seconds remaining in the current phase)
   const phase = PHASES[session.phaseIdx];
-  const phaseElapsed = (now - session.phaseStartTs) / 1000;
-  const phaseRemaining = Math.max(0, Math.ceil(phase.secs - phaseElapsed));
-  phaseCount.textContent = phaseRemaining;
+  const local = Math.min(1, (now - session.phaseStartTs) / 1000 / phase.secs);
 
-  if (phaseElapsed >= phase.secs) {
-    // End the session at a phase boundary once time is up, so we never
-    // cut off mid-breath. Otherwise move to the next phase.
-    if (remaining <= 0) {
-      endSession(true);
-      return;
-    }
+  // Drive the breath: eased 0→1 inhaling, held at 1, eased 1→0 exhaling.
+  let breath;
+  if (phase.type === 'in') breath = easeInOutSine(local);
+  else if (phase.type === 'hold') breath = 1;
+  else breath = easeInOutSine(1 - local);
+  root.style.setProperty('--breath', breath.toFixed(4));
+
+  if (local >= 1) {
+    // End the session at a phase boundary once time is up, so we never cut off
+    // mid-breath. Otherwise advance to the next phase.
+    if (remaining <= 0) { endSession(true); return; }
     advancePhase(now);
   }
 
@@ -162,10 +192,10 @@ function formatClock(totalSecs) {
 }
 
 function vibrate() {
-  if (navigator.vibrate) navigator.vibrate(20);
+  if (!root.classList.contains('muted') && navigator.vibrate) navigator.vibrate(20);
 }
 
-// ---- Audio: a soft synthesized "ding" on each phase change ----
+// ---- Audio: a soft synthesized chime on each phase change ----
 // Synthesized via Web Audio (no asset file) so it stays light and works offline.
 let audioCtx = null;
 function ensureAudio() {
@@ -175,7 +205,7 @@ function ensureAudio() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 function ding() {
-  if (!audioCtx) return;
+  if (root.classList.contains('muted') || !audioCtx) return;
   const t = audioCtx.currentTime;
 
   // A lowpass rolls off any harsh high edge for a soft, warm tone.
@@ -185,12 +215,9 @@ function ding() {
   filter.Q.value = 0.7;
   filter.connect(audioCtx.destination);
 
-  // Two quiet sine partials a perfect fifth apart — a calm, open chime.
-  // Slow attack (no click) and a long gentle decay make it relaxing.
-  const partials = [
-    { freq: 432, peak: 0.09 }, // warm fundamental
-    { freq: 648, peak: 0.035 }, // soft fifth above
-  ];
+  // Two quiet sine partials a perfect fifth apart — a calm, open chime, with a
+  // slow attack (no click) and a long gentle decay.
+  const partials = [ { freq: 432, peak: 0.09 }, { freq: 648, peak: 0.035 } ];
   for (const { freq, peak } of partials) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -205,17 +232,15 @@ function ding() {
   }
 }
 
-// Keep the screen on during a session where supported (Chrome on Pixel).
+// ---- Keep the screen awake during a session (Chrome on Pixel) ----
 let wakeLock = null;
 async function keepAwake() {
-  try {
-    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
-  } catch { /* ignore — non-critical */ }
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }
+  catch { /* non-critical */ }
 }
 function releaseWake() {
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
 }
-// Re-acquire the wake lock if the user tabs away and back mid-session.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && session) {
     if (!wakeLock) keepAwake();
