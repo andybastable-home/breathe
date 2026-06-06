@@ -177,17 +177,32 @@ function ensureAudio() {
 function ding() {
   if (!audioCtx) return;
   const t = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.value = 880; // gentle bell-ish pitch
-  // Quick soft attack, long gentle decay.
-  gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.exponentialRampToValueAtTime(0.13, t + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
-  osc.connect(gain).connect(audioCtx.destination);
-  osc.start(t);
-  osc.stop(t + 0.85);
+
+  // A lowpass rolls off any harsh high edge for a soft, warm tone.
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 1100;
+  filter.Q.value = 0.7;
+  filter.connect(audioCtx.destination);
+
+  // Two quiet sine partials a perfect fifth apart — a calm, open chime.
+  // Slow attack (no click) and a long gentle decay make it relaxing.
+  const partials = [
+    { freq: 432, peak: 0.09 }, // warm fundamental
+    { freq: 648, peak: 0.035 }, // soft fifth above
+  ];
+  for (const { freq, peak } of partials) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    osc.connect(gain).connect(filter);
+    osc.start(t);
+    osc.stop(t + 1.85);
+  }
 }
 
 // Keep the screen on during a session where supported (Chrome on Pixel).

@@ -1,5 +1,5 @@
 // Bump CACHE_VERSION whenever shell files change so updates roll cleanly.
-const CACHE_VERSION = 'v0.2.0';
+const CACHE_VERSION = 'v0.2.1';
 const CACHE_NAME = `breathe-shell-${CACHE_VERSION}`;
 
 const SHELL = [

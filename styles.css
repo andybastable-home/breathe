@@ -40,6 +40,9 @@ body {
   inset: 0;
   display: flex;
   flex-direction: column;
+  /* Reserve room for the fixed footer so centred content (e.g. the Start
+     button on a shorter viewport) never renders behind the version text. */
+  padding-bottom: calc(env(safe-area-inset-bottom) + 30px);
 }
 
 /* ---------------- Screens ---------------- */
