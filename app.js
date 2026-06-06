@@ -5,11 +5,13 @@
 
 // The 4-7-8 technique: inhale 4s, hold 7s, exhale 8s. One cycle = 19s.
 // `scale` is the orb size at the END of the phase (start is the prior phase's end).
+// `c1`/`c2` are the orb gradient colours and `glow` its halo for that phase.
 const PHASES = [
-  { name: 'Breathe in', secs: 4, scale: 1.0 },
-  { name: 'Hold',       secs: 7, scale: 1.0 },
-  { name: 'Breathe out', secs: 8, scale: 0.55 },
+  { name: 'Breathe in',  secs: 4, scale: 1.0,  c1: '#6fd3c7', c2: '#4a9ed8', glow: 'rgba(111,211,199,.55)' },
+  { name: 'Hold',        secs: 7, scale: 1.0,  c1: '#9d8cf0', c2: '#6a5acd', glow: 'rgba(157,140,240,.55)' },
+  { name: 'Breathe out', secs: 8, scale: 0.55, c1: '#f6b07a', c2: '#ec7c8f', glow: 'rgba(246,176,122,.50)' },
 ];
+const EXHALED_SCALE = PHASES[PHASES.length - 1].scale; // orb size at rest (fully exhaled)
 const CYCLE_SECS = PHASES.reduce((t, p) => t + p.secs, 0); // 19
 const MIN_MINUTES = 1;
 const MAX_MINUTES = 15;
@@ -63,18 +65,32 @@ function showScreen(name) {
 
 // ---- Session ----
 function startSession() {
-  const now = performance.now();
-  session = {
-    totalMs: minutes * 60 * 1000,
-    startTs: now,
-    phaseIdx: -1, // advancePhase() bumps this to 0
-    phaseStartTs: now,
-    rafId: 0,
-  };
+  ensureAudio(); // create/resume the AudioContext inside the click gesture
   showScreen('session');
+  phaseLabel.textContent = 'Breathe in';
+  phaseCount.textContent = '';
   keepAwake();
-  advancePhase(now); // enter the first phase
-  tick();
+
+  // Snap the orb to its fully exhaled size with no animation first. Going from
+  // display:none to visible and changing --scale in the same frame would skip
+  // the transition, so the first breath-in would pop to full size instead of
+  // visibly growing. Reset + force a reflow, then animate on the next frame.
+  orb.style.transition = 'none';
+  orb.style.setProperty('--scale', EXHALED_SCALE);
+  void orb.offsetWidth; // force reflow so the reset takes hold immediately
+  orb.style.transition = ''; // restore the CSS transition (transform linear)
+
+  requestAnimationFrame((now) => {
+    session = {
+      totalMs: minutes * 60 * 1000,
+      startTs: now,
+      phaseIdx: -1, // advancePhase() bumps this to 0
+      phaseStartTs: now,
+      rafId: 0,
+    };
+    advancePhase(now); // enter the first phase
+    tick();
+  });
 }
 
 function advancePhase(now) {
@@ -82,11 +98,19 @@ function advancePhase(now) {
   session.phaseStartTs = now;
   const phase = PHASES[session.phaseIdx];
 
-  // Size the orb toward this phase's target over its full duration.
+  // Size the orb toward this phase's target over its full duration. The two
+  // durations map to the CSS transition properties in order: transform (full
+  // phase) then box-shadow (a quick 600ms glow cross-fade).
   phaseLabel.textContent = phase.name;
-  orb.style.transitionDuration = phase.secs + 's';
+  orb.style.transitionDuration = phase.secs + 's, 600ms';
   orb.style.setProperty('--scale', phase.scale);
 
+  // Recolour the orb for this phase.
+  orb.style.setProperty('--orb-1', phase.c1);
+  orb.style.setProperty('--orb-2', phase.c2);
+  orb.style.setProperty('--glow', phase.glow);
+
+  ding();
   vibrate();
 }
 
@@ -141,6 +165,31 @@ function vibrate() {
   if (navigator.vibrate) navigator.vibrate(20);
 }
 
+// ---- Audio: a soft synthesized "ding" on each phase change ----
+// Synthesized via Web Audio (no asset file) so it stays light and works offline.
+let audioCtx = null;
+function ensureAudio() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  if (!audioCtx) audioCtx = new Ctx();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function ding() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 880; // gentle bell-ish pitch
+  // Quick soft attack, long gentle decay.
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(0.13, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.85);
+}
+
 // Keep the screen on during a session where supported (Chrome on Pixel).
 let wakeLock = null;
 async function keepAwake() {
@@ -153,7 +202,10 @@ function releaseWake() {
 }
 // Re-acquire the wake lock if the user tabs away and back mid-session.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && session && !wakeLock) keepAwake();
+  if (document.visibilityState === 'visible' && session) {
+    if (!wakeLock) keepAwake();
+    ensureAudio(); // the AudioContext can suspend while backgrounded
+  }
 });
 
 // ---- Service worker ----

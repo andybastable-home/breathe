@@ -6,9 +6,10 @@
   /* surfaces */
   --bg-top: #2b3a67;
   --bg-bottom: #1c2541;
-  /* accent / orb */
+  /* accent / orb (defaults = "breathe in" phase; JS overrides per phase) */
   --orb-1: #6fd3c7;
   --orb-2: #4a9ed8;
+  --glow: rgba(111, 211, 199, 0.55);
   --accent: #8fe3d8;
   --ink: #0e1426;
   /* text */
@@ -156,11 +157,12 @@ body {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, var(--orb-1), var(--orb-2) 70%);
   box-shadow:
-    0 0 60px -10px rgba(111, 211, 199, 0.55),
+    0 0 60px -10px var(--glow),
     inset 0 0 50px rgba(255, 255, 255, 0.12);
   transform: scale(var(--scale));
-  /* JS sets the transition duration per phase so easing matches the timing */
-  transition: transform linear;
+  /* JS sets the transform transition duration per phase so easing matches the
+     timing. The glow cross-fades gently when the phase colour changes. */
+  transition: transform linear, box-shadow 600ms ease;
   will-change: transform;
 }
 
