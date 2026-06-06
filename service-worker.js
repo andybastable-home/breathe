@@ -1,10 +1,10 @@
 // Bump CACHE_VERSION whenever shell files change so updates roll cleanly.
-const CACHE_VERSION = 'v0.3.0';
+const CACHE_VERSION = 'v0.3.1';
 const CACHE_NAME = `breathe-shell-${CACHE_VERSION}`;
 
 // Google Fonts stylesheet for Cormorant Garamond. The woff2 files it references
 // are cached on first use by the fetch handler below (they're CORS-enabled).
-const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,300;1,400;1,500&display=swap';
+const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,300;1,400;1,500&family=Great+Vibes&display=swap';
 
 const LOCAL_SHELL = [
   './',

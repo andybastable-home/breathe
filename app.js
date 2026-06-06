@@ -27,6 +27,7 @@ const screens = {
 };
 const durMinsEl = document.getElementById('dur-mins');
 const phaseLabel = document.getElementById('phase-label');
+const countEl = document.getElementById('count');
 const timeLeftEl = document.getElementById('time-left');
 const doneSub = document.getElementById('done-sub');
 
@@ -160,6 +161,10 @@ function tick() {
   else if (phase.type === 'hold') breath = 1;
   else breath = easeInOutSine(1 - local);
   root.style.setProperty('--breath', breath.toFixed(4));
+
+  // Subtle per-phase countdown in the orb (seconds remaining in this phase).
+  const count = String(Math.max(1, Math.ceil(phase.secs * (1 - local))));
+  if (countEl.textContent !== count) countEl.textContent = count;
 
   if (local >= 1) {
     // End the session at a phase boundary once time is up, so we never cut off

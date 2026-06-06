@@ -20,6 +20,7 @@
   --ring: rgba(255,255,255,.55);
   --star-color: #fff2cf;
   --ui: #7a4636;
+  --orb-ink: #6e3f30;
   --hair: rgba(122,70,54,.32);
   --btn: linear-gradient(135deg, #ffe7bc, #f6a96a);
   --btn-ink: #6e3f30;
@@ -33,6 +34,7 @@
   --ring: rgba(190,175,255,.4);
   --star-color: #fff;
   --ui: #efe9ff;
+  --orb-ink: #2b2358;
   --hair: rgba(220,210,255,.28);
   --btn: linear-gradient(135deg, #ece0ff, #9d8cf0);
   --btn-ink: #241d52;
@@ -176,6 +178,17 @@ html.muted .mute .ico-off{ display:block; }
   content:""; position:absolute; inset:0; border-radius:50%;
   background:radial-gradient(circle at 36% 30%, rgba(255,255,255,.45), transparent 52%);
   opacity:var(--sheen,.5);
+}
+
+/* subtle per-phase countdown, centred over the orb and scaling WITH it.
+   Great Vibes has stable lining figures (Cormorant's old-style numerals wobble
+   vertically as the digit changes). */
+.count{
+  position:absolute; inset:0; display:grid; place-items:center; pointer-events:none;
+  font-family:"Great Vibes", cursive; font-weight:400;
+  font-size:2.9rem; color:var(--orb-ink); opacity:.42;
+  font-variant-numeric:lining-nums tabular-nums;
+  transform:scale(var(--orb-scale));
 }
 
 .phase-label{ font-style:italic; font-weight:300; font-size:2.4rem; letter-spacing:.04em; }

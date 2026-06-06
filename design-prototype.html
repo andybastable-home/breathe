@@ -6,7 +6,7 @@
 <title>Breathe — design prototypes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Great+Vibes&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    Breathe — design prototype gallery
@@ -148,6 +148,17 @@ figure{display:flex;flex-direction:column;align-items:center;gap:18px;width:300p
   opacity:var(--sheen,.5);
 }
 
+/* subtle per-phase countdown, centred over the orb; scales WITH the orb.
+   Great Vibes has stable lining figures (Cormorant's old-style numerals
+   wobble vertically as the digit changes). */
+.count{
+  position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
+  font-family:"Great Vibes",cursive;font-weight:400;
+  font-size:2.7rem;color:var(--orb-ink);opacity:.42;
+  font-variant-numeric:lining-nums tabular-nums;
+  transform:scale(var(--orb-scale));
+}
+
 /* phase label */
 .label{
   position:relative;z-index:4;padding:0 0 56px;text-align:center;
@@ -177,6 +188,7 @@ figcaption .cdesc{font-size:.96rem;color:#aaa3c4;margin-top:10px;line-height:1.5
   --ring:rgba(255,255,255,.55);
   --star-color:#fff2cf;
   --ui:#7a4636;
+  --orb-ink:#6e3f30;
   --hair:rgba(122,70,54,.32);
   --btn:linear-gradient(135deg,#ffe7bc,#f6a96a);
   --btn-ink:#6e3f30;
@@ -193,6 +205,7 @@ figcaption .cdesc{font-size:.96rem;color:#aaa3c4;margin-top:10px;line-height:1.5
   --ring:rgba(190,175,255,.4);
   --star-color:#fff;
   --ui:#efe9ff;
+  --orb-ink:#2b2358;
   --hair:rgba(220,210,255,.28);
   --btn:linear-gradient(135deg,#ece0ff,#9d8cf0);
   --btn-ink:#241d52;
@@ -424,6 +437,7 @@ footer.legend b{color:#cfc8ea;font-weight:500}
               <div class="rings"></div>
               <div class="decor"></div>
               <div class="orb"></div>
+              <div class="count"></div>
             </div>
           </div>
           <div class="label">Breathe in</div>
@@ -449,6 +463,7 @@ footer.legend b{color:#cfc8ea;font-weight:500}
               <div class="rings"></div>
               <div class="decor"></div>
               <div class="orb"></div>
+              <div class="count"></div>
             </div>
           </div>
           <div class="label">Breathe in</div>
@@ -514,6 +529,7 @@ const PHASES = [
 const CYCLE = PHASES.reduce((t,p)=>t+p.secs,0);
 const root = document.documentElement;
 const labels = [...document.querySelectorAll('.label')];
+const counts = [...document.querySelectorAll('.count')];
 
 const easeInOutSine = x => -(Math.cos(Math.PI*x)-1)/2;
 
@@ -529,6 +545,10 @@ function frame(now){
   else                         breath = easeInOutSine(1-local);
 
   root.style.setProperty('--breath', breath.toFixed(4));
+
+  // subtle per-phase countdown (seconds remaining in this phase)
+  const count = Math.max(1, Math.ceil(phase.secs * (1 - local)));
+  for(const el of counts){ const s=String(count); if(el.textContent!==s) el.textContent=s; }
 
   for(const el of labels){
     if(el.textContent!==phase.name){ el.textContent=phase.name; }
