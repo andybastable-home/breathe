@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breathe — design prototypes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Pinyon+Script&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Breathe — design prototype gallery
+   Three directions for the 4-7-8 breathing visual. All run on the
+   real cadence (in 4s · hold 7s · out 8s). Motion model:
+     · concentric rings expand from under the orb on the in-breath
+       and tuck back under it (fading) at maximum exhale;
+     · decorative shapes bloom on the out-breath, then shrink in
+       place and vanish at the bottom of the breath.
+   ============================================================ */
+:root{
+  /* shared breath state, written by JS every frame */
+  --breath: 0;   /* 0 = fully exhaled (orb small), 1 = fully inhaled (orb large) */
+  --star: 0;     /* 0..1 life of the exhale-only decorations */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, #15131f 0%, #0b0a11 55%, #070609 100%);
+  color:#e9e6f2;
+  font-family:"EB Garamond",Georgia,serif;
+  -webkit-font-smoothing:antialiased;
+  padding:48px 24px 96px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+}
+/* faint grain for atmosphere */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.04;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.page-head{text-align:center;max-width:640px;margin-bottom:24px}
+.page-head .eyebrow{
+  font-family:"Cormorant Garamond",serif;
+  text-transform:uppercase;letter-spacing:.42em;font-size:.74rem;
+  color:#8a83a8;margin-bottom:14px;padding-left:.42em;
+}
+.page-head h1{
+  font-family:"Fraunces",serif;font-weight:300;font-size:clamp(2.4rem,6vw,3.6rem);
+  font-style:italic;letter-spacing:-.01em;line-height:1;margin-bottom:18px;
+}
+.page-head p{
+  font-size:1.05rem;line-height:1.6;color:#b9b3cf;font-style:italic;
+}
+.page-head .note{
+  margin-top:14px;font-style:normal;font-size:.92rem;color:#7d7798;
+  font-family:"Cormorant Garamond",serif;letter-spacing:.01em;
+}
+
+.gallery{
+  display:flex;flex-wrap:wrap;gap:40px;justify-content:center;
+  align-items:flex-start;margin-top:16px;max-width:1100px;
+}
+figure{display:flex;flex-direction:column;align-items:center;gap:18px;width:300px}
+
+/* ---- device frame ---- */
+.device{
+  position:relative;width:300px;height:620px;border-radius:46px;
+  padding:10px;background:linear-gradient(160deg,#26232f,#100e16);
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.8),
+             inset 0 1px 1px rgba(255,255,255,.08),
+             0 0 0 1px rgba(255,255,255,.04);
+}
+.screen{
+  position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;
+  background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  transition:background 800ms ease;
+}
+
+/* mute pill (decorative, matches the reference) */
+.mute{
+  position:absolute;top:18px;right:18px;z-index:6;
+  width:38px;height:38px;border-radius:50%;border:none;cursor:default;
+  background:rgba(0,0,0,.28);color:var(--ui);
+  display:grid;place-items:center;backdrop-filter:blur(4px);
+}
+.mute svg{width:17px;height:17px}
+
+/* ---- breathing stage ---- */
+.stage{
+  position:relative;flex:1;width:100%;
+  display:grid;place-items:center;
+}
+.stagewrap{position:relative;width:170px;height:170px;display:grid;place-items:center}
+
+.rings{position:absolute;inset:0;display:grid;place-items:center}
+.ring{
+  position:absolute;width:150px;height:150px;border-radius:50%;
+  border:1.5px solid var(--ring);
+  /* expands as the breath fills, tucked under the orb (scale 1) at exhale */
+  transform:scale(calc(1 + var(--breath) * var(--k)));
+  opacity:calc(var(--breath) * var(--of));
+  transition:opacity 200ms linear;
+}
+
+/* decorative shapes injected by JS; live only on the exhale */
+.decor{position:absolute;inset:0;pointer-events:none}
+.shape{
+  position:absolute;left:50%;top:50%;color:var(--star-color);
+  transform:translate(-50%,-50%)
+            translate(var(--x),var(--y))
+            scale(calc(var(--star) * var(--s)))
+            rotate(var(--rot));
+  opacity:calc(var(--star) * var(--so,1));
+  will-change:transform,opacity;
+}
+.shape svg{display:block;width:100%;height:100%}
+@keyframes drift{from{rotate:0deg}to{rotate:360deg}}
+
+/* the orb */
+.orb{
+  position:relative;width:150px;height:150px;border-radius:50%;
+  background:var(--orb);
+  transform:scale(calc(.52 + var(--breath) * .48));
+  box-shadow:var(--orb-shadow);
+}
+.orb::after{ /* soft inner sheen */
+  content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,rgba(255,255,255,.45),transparent 52%);
+  opacity:var(--sheen,.5);
+}
+
+/* phase label */
+.label{
+  position:relative;z-index:4;padding:0 0 56px;text-align:center;
+  font-family:var(--font);font-size:var(--label-size,2rem);
+  font-weight:var(--label-weight,400);font-style:var(--label-style,normal);
+  letter-spacing:var(--label-spacing,.02em);color:var(--ui);
+  transition:opacity 500ms ease;
+}
+
+figcaption{text-align:center;width:280px}
+figcaption .cname{
+  font-family:"Cormorant Garamond",serif;font-size:1.5rem;letter-spacing:.02em;
+}
+figcaption .cmeta{
+  font-family:"Cormorant Garamond",serif;font-size:.85rem;color:#8a83a8;
+  text-transform:uppercase;letter-spacing:.18em;margin-top:4px;
+}
+figcaption .cdesc{font-size:.96rem;color:#aaa3c4;margin-top:10px;line-height:1.5;font-style:italic}
+.swatches{display:flex;gap:6px;justify-content:center;margin-top:12px}
+.swatches i{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+
+/* =================== THEME A — Aubade (warm dawn) =================== */
+.t-aubade{
+  --bg:radial-gradient(130% 110% at 50% 8%,#fde9d4 0%,#f6cdb0 42%,#eaa789 78%,#d98b73 100%);
+  --orb:radial-gradient(circle at 40% 32%,#fff4d8 0%,#ffd58c 55%,#f6a96a 100%);
+  --orb-shadow:0 0 70px -6px rgba(255,193,120,.75), inset 0 0 40px rgba(255,255,255,.4);
+  --ring:rgba(255,255,255,.55);
+  --star-color:#fff2cf;
+  --ui:#7a4636;
+  --font:"Fraunces",serif;
+  --label-style:italic;--label-weight:300;--label-size:2.05rem;--label-spacing:0;
+  --sheen:.7;
+}
+/* =================== THEME B — Sumi (ink & blossom) =================== */
+.t-sumi{
+  --bg:radial-gradient(125% 105% at 50% 12%,#f7f3e8 0%,#efe7d4 55%,#e3d8c0 100%);
+  --orb:radial-gradient(circle at 38% 34%,#5c6173 0%,#363a4b 52%,#23222e 100%);
+  --orb-shadow:0 22px 50px -14px rgba(35,34,46,.55), inset 0 0 46px rgba(255,255,255,.06);
+  --ring:rgba(60,55,70,.32);
+  --star-color:#e7a6b6;
+  --ui:#3a3550;
+  --font:"Pinyon Script",cursive;
+  --label-size:2.9rem;--label-weight:400;--label-spacing:0;
+  --sheen:.22;
+}
+/* =================== THEME C — Celeste (night & stars) =================== */
+.t-celeste{
+  --bg:radial-gradient(125% 110% at 50% 6%,#2c2566 0%,#241d52 46%,#181339 100%);
+  --orb:radial-gradient(circle at 38% 32%,#e8d7ff 0%,#c3adf5 50%,#8f7be0 100%);
+  --orb-shadow:0 0 80px -4px rgba(168,140,255,.7), inset 0 0 46px rgba(255,255,255,.25);
+  --ring:rgba(190,175,255,.4);
+  --star-color:#fff;
+  --ui:#efe9ff;
+  --font:"Cormorant Garamond",serif;
+  --label-style:italic;--label-weight:300;--label-size:2.3rem;--label-spacing:.04em;
+  --sheen:.5;
+}
+
+footer.legend{
+  margin-top:54px;max-width:620px;text-align:center;color:#857fa3;
+  font-family:"Cormorant Garamond",serif;font-size:1rem;line-height:1.7;
+}
+footer.legend b{color:#cfc8ea;font-weight:500}
+</style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div class="eyebrow">Breathe · 4 · 7 · 8</div>
+    <h1>Three directions</h1>
+    <p>Pick a feeling, not a finished screen. Each runs on the real cadence — in four, hold seven, out eight — so you can watch the motion breathe.</p>
+    <div class="note">Rings swell on the in-breath and slip back under the orb at the bottom of the exhale · shapes bloom only as you breathe out, then shrink away to nothing.</div>
+  </header>
+
+  <div class="gallery">
+
+    <!-- A · Aubade -->
+    <figure>
+      <div class="device t-aubade">
+        <div class="screen">
+          <button class="mute" aria-hidden="true" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          </button>
+          <div class="stage" data-shape="mote">
+            <div class="stagewrap">
+              <div class="rings"></div>
+              <div class="decor"></div>
+              <div class="orb"></div>
+            </div>
+          </div>
+          <div class="label">Breathe in</div>
+        </div>
+      </div>
+      <figcaption>
+        <div class="cname">Aubade</div>
+        <div class="cmeta">Fraunces italic · warm dawn</div>
+        <div class="cdesc">A sun cresting at first light. Golden motes drift up on the exhale.</div>
+        <div class="swatches"><i style="background:#fde9d4"></i><i style="background:#f6a96a"></i><i style="background:#fff4d8"></i><i style="background:#7a4636"></i></div>
+      </figcaption>
+    </figure>
+
+    <!-- B · Sumi -->
+    <figure>
+      <div class="device t-sumi">
+        <div class="screen">
+          <button class="mute" aria-hidden="true" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          </button>
+          <div class="stage" data-shape="petal">
+            <div class="stagewrap">
+              <div class="rings"></div>
+              <div class="decor"></div>
+              <div class="orb"></div>
+            </div>
+          </div>
+          <div class="label">Breathe in</div>
+        </div>
+      </div>
+      <figcaption>
+        <div class="cname">Sumi</div>
+        <div class="cmeta">Pinyon Script · ink on paper</div>
+        <div class="cdesc">An ink-wash moon on rice paper. Blossoms open as you let the breath go.</div>
+        <div class="swatches"><i style="background:#f7f3e8"></i><i style="background:#23222e"></i><i style="background:#e7a6b6"></i><i style="background:#3a3550"></i></div>
+      </figcaption>
+    </figure>
+
+    <!-- C · Celeste -->
+    <figure>
+      <div class="device t-celeste">
+        <div class="screen">
+          <button class="mute" aria-hidden="true" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          </button>
+          <div class="stage" data-shape="star">
+            <div class="stagewrap">
+              <div class="rings"></div>
+              <div class="decor"></div>
+              <div class="orb"></div>
+            </div>
+          </div>
+          <div class="label">Breathe in</div>
+        </div>
+      </div>
+      <figcaption>
+        <div class="cname">Celeste</div>
+        <div class="cmeta">Cormorant italic · night sky</div>
+        <div class="cdesc">Closest to your reference. Stars twinkle out on the exhale and dissolve at the bottom.</div>
+        <div class="swatches"><i style="background:#241d52"></i><i style="background:#8f7be0"></i><i style="background:#e8d7ff"></i><i style="background:#ffffff"></i></div>
+      </figcaption>
+    </figure>
+
+  </div>
+
+  <footer class="legend">
+    These are mood studies, not the final build. Tell me which font and palette
+    feel right — or mix them (e.g. <b>Celeste</b> motion with <b>Sumi</b> blossoms) —
+    and I’ll fold the chosen direction into the live app.
+  </footer>
+
+<script>
+/* ---- shared 4-7-8 breath clock ---- */
+const PHASES = [
+  { name:'Breathe in',  secs:4, type:'in'   },
+  { name:'Hold',        secs:7, type:'hold' },
+  { name:'Breathe out', secs:8, type:'out'  },
+];
+const CYCLE = PHASES.reduce((t,p)=>t+p.secs,0);
+const root = document.documentElement;
+const labels = [...document.querySelectorAll('.label')];
+
+const easeInOutSine = x => -(Math.cos(Math.PI*x)-1)/2;
+
+function frame(now){
+  const t = (now/1000) % CYCLE;
+  // locate current phase
+  let acc=0, phase=PHASES[0], local=0;
+  for(const p of PHASES){ if(t < acc+p.secs){ phase=p; local=(t-acc)/p.secs; break; } acc+=p.secs; }
+
+  let breath, exhaleP=0;
+  if(phase.type==='in')        breath = easeInOutSine(local);
+  else if(phase.type==='hold') breath = 1;
+  else { breath = easeInOutSine(1-local); exhaleP = local; }
+
+  // shapes: appear quickly at the start of the exhale, shrink to nothing by the end
+  let star = 0;
+  if(phase.type==='out'){
+    const appear = Math.min(1, exhaleP/0.15);
+    const fade   = Math.pow(1-exhaleP, 0.9);
+    star = appear*fade;
+  }
+
+  root.style.setProperty('--breath', breath.toFixed(4));
+  root.style.setProperty('--star',   star.toFixed(4));
+
+  for(const el of labels){
+    if(el.textContent!==phase.name){ el.textContent=phase.name; }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---- build rings + decorative shapes per stage ---- */
+const RING_SPEC = [ {k:.55, of:.9}, {k:1.0, of:.6}, {k:1.55, of:.32} ];
+
+const SHAPE_SVG = {
+  star:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></svg>',
+  mote:  '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>',
+  petal: '<svg viewBox="0 0 24 24" fill="currentColor"><g><circle cx="12" cy="5.5" r="4.4"/><circle cx="18.5" cy="14" r="4.4"/><circle cx="5.5" cy="14" r="4.4"/><circle cx="9" cy="20" r="4.4"/><circle cx="15" cy="20" r="4.4"/><circle cx="12" cy="13" r="3" fill="rgba(255,255,255,.55)"/></g></svg>',
+};
+
+document.querySelectorAll('.stage').forEach(stage=>{
+  const rings = stage.querySelector('.rings');
+  RING_SPEC.forEach(s=>{
+    const r=document.createElement('span');
+    r.className='ring';
+    r.style.setProperty('--k', s.k);
+    r.style.setProperty('--of', s.of);
+    rings.appendChild(r);
+  });
+
+  const decor = stage.querySelector('.decor');
+  const type = stage.dataset.shape;
+  const N = 7;
+  for(let i=0;i<N;i++){
+    const ang = (i/N)*Math.PI*2 + Math.random()*0.6;
+    const rad = 92 + Math.random()*44;           // distance from centre (px)
+    const size = (type==='petal'? 16:13) + Math.random()*12;
+    const sp = document.createElement('span');
+    sp.className='shape';
+    sp.style.width = sp.style.height = size+'px';
+    sp.style.setProperty('--x', Math.cos(ang)*rad+'px');
+    sp.style.setProperty('--y', Math.sin(ang)*rad+'px');
+    sp.style.setProperty('--s', (0.7+Math.random()*0.6).toFixed(2));
+    sp.style.setProperty('--rot', (Math.random()*60-30)+'deg');
+    sp.style.setProperty('--so', (0.7+Math.random()*0.3).toFixed(2));
+    if(type==='star'){ sp.style.animation = `drift ${14+Math.random()*10}s linear infinite`; }
+    sp.innerHTML = SHAPE_SVG[type];
+    decor.appendChild(sp);
+  }
+});
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
