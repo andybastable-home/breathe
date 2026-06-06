@@ -21,6 +21,7 @@
   /* shared breath state, written by JS every frame */
   --breath: 0;   /* 0 = fully exhaled (orb small), 1 = fully inhaled (orb large) */
   --star: 0;     /* 0..1 life of the exhale-only decorations */
+  --orb-scale: calc(.52 + var(--breath) * .48); /* orb diameter factor */
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
@@ -100,10 +101,13 @@ figure{display:flex;flex-direction:column;align-items:center;gap:18px;width:300p
 .ring{
   position:absolute;width:150px;height:150px;border-radius:50%;
   border:1.5px solid var(--ring);
-  /* expands as the breath fills, tucked under the orb (scale 1) at exhale */
-  transform:scale(calc(1 + var(--breath) * var(--k)));
-  opacity:calc(var(--breath) * var(--of));
-  transition:opacity 200ms linear;
+  /* Radius tracks the orb's own scale (--orb-scale) so the rings expand on the
+     in-breath and shrink WITH the orb on the out-breath, slipping back under it
+     at maximum exhale. The extra (1 + breath*k) pushes them beyond the orb when
+     the breath is full. */
+  transform:scale(calc(var(--orb-scale) * (1 + var(--breath) * var(--k))));
+  /* stay visible while shrinking; fade only right as they reach the orb */
+  opacity:calc(min(1, var(--breath) * 1.4) * var(--of));
 }
 
 /* decorative shapes injected by JS; live only on the exhale */
@@ -124,7 +128,7 @@ figure{display:flex;flex-direction:column;align-items:center;gap:18px;width:300p
 .orb{
   position:relative;width:150px;height:150px;border-radius:50%;
   background:var(--orb);
-  transform:scale(calc(.52 + var(--breath) * .48));
+  transform:scale(var(--orb-scale));
   box-shadow:var(--orb-shadow);
 }
 .orb::after{ /* soft inner sheen */
