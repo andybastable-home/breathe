@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="A calm 4-7-8 breathing guide.">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#1c2541">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Breathe">
+  <title>Breathe</title>
+</head>
+<body>
+  <main id="app">
+
+    <!-- Setup screen -->
+    <section id="setup" class="screen">
+      <h1 class="title">Breathe</h1>
+      <p class="subtitle">4&nbsp;·&nbsp;7&nbsp;·&nbsp;8 &mdash; in, hold, out</p>
+
+      <div class="duration">
+        <span class="duration-label">Session length</span>
+        <div class="stepper">
+          <button id="dur-down" class="step-btn" aria-label="Less time">&minus;</button>
+          <div class="dur-value">
+            <span id="dur-mins">3</span>
+            <span class="dur-unit">min</span>
+          </div>
+          <button id="dur-up" class="step-btn" aria-label="More time">+</button>
+        </div>
+      </div>
+
+      <button id="start-btn" class="start-btn">Start</button>
+    </section>
+
+    <!-- Session screen -->
+    <section id="session" class="screen" hidden>
+      <div class="orb-wrap">
+        <div id="orb" class="orb"></div>
+        <div class="orb-text">
+          <span id="phase-label" class="phase-label">Ready</span>
+          <span id="phase-count" class="phase-count"></span>
+        </div>
+      </div>
+
+      <div class="session-foot">
+        <span id="time-left" class="time-left">3:00</span>
+        <button id="stop-btn" class="stop-btn">Stop</button>
+      </div>
+    </section>
+
+    <!-- Done screen -->
+    <section id="done" class="screen" hidden>
+      <h1 class="title">Nicely done</h1>
+      <p class="subtitle" id="done-sub">You finished your session.</p>
+      <button id="again-btn" class="start-btn">Again</button>
+    </section>
+
+  </main>
+
+  <footer class="app-footer"><span id="version">v0.1.0</span></footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
