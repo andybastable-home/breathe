@@ -20,7 +20,6 @@
 :root{
   /* shared breath state, written by JS every frame */
   --breath: 0;   /* 0 = fully exhaled (orb small), 1 = fully inhaled (orb large) */
-  --star: 0;     /* 0..1 life of the exhale-only decorations */
   --orb-scale: calc(.52 + var(--breath) * .48); /* orb diameter factor */
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -110,10 +109,12 @@ figure{display:flex;flex-direction:column;align-items:center;gap:18px;width:300p
   opacity:calc(min(1, var(--breath) * 1.4) * var(--of));
 }
 
-/* Decorative shapes injected by JS; they live only on the exhale.
-   Each shape rides on one of the rings: an .orbit wrapper slowly spins it
-   around the centre, while the shape sits at that ring's current radius — so it
-   moves outward/inward WITH the ring as the breath swells and releases. */
+/* Decorative shapes injected by JS. The ORBIT never stops (continuous CSS spin),
+   so motion always picks up where it left off. Each shape rides on one of the
+   rings — sitting at that ring's current radius, sweeping outward on the
+   in-breath and gathering in on the exhale — while its scale + opacity track the
+   breath: fading in and growing as you breathe in, full through the hold, then
+   shrinking away to nothing at the bottom of the exhale. */
 .decor{position:absolute;inset:0;pointer-events:none}
 .orbit{
   position:absolute;inset:0;display:grid;place-items:center;
@@ -126,8 +127,8 @@ figure{display:flex;flex-direction:column;align-items:center;gap:18px;width:300p
   /* radius mirrors .ring: base 75px * orb scale * this ring's expansion */
   --R:calc(75px * var(--orb-scale) * (1 + var(--breath) * var(--ring-k)));
   width:var(--size);height:var(--size);color:var(--star-color);
-  transform:translateY(calc(-1 * var(--R))) scale(calc(var(--star) * var(--s)));
-  opacity:calc(var(--star) * var(--so,1));
+  transform:translateY(calc(-1 * var(--R))) scale(calc(var(--breath) * var(--s)));
+  opacity:calc(var(--breath) * var(--so,1));
   will-change:transform,opacity;
 }
 .shape svg{display:block;width:100%;height:100%}
@@ -176,6 +177,10 @@ figcaption .cdesc{font-size:.96rem;color:#aaa3c4;margin-top:10px;line-height:1.5
   --ring:rgba(255,255,255,.55);
   --star-color:#fff2cf;
   --ui:#7a4636;
+  --hair:rgba(122,70,54,.32);
+  --btn:linear-gradient(135deg,#ffe7bc,#f6a96a);
+  --btn-ink:#6e3f30;
+  --btn-glow:0 16px 32px -12px rgba(231,140,90,.8);
   --font:"Cormorant Garamond",serif;
   --label-style:italic;--label-weight:300;--label-size:2.3rem;--label-spacing:.04em;
   --sheen:.7;
@@ -188,9 +193,94 @@ figcaption .cdesc{font-size:.96rem;color:#aaa3c4;margin-top:10px;line-height:1.5
   --ring:rgba(190,175,255,.4);
   --star-color:#fff;
   --ui:#efe9ff;
+  --hair:rgba(220,210,255,.28);
+  --btn:linear-gradient(135deg,#ece0ff,#9d8cf0);
+  --btn-ink:#241d52;
+  --btn-glow:0 16px 36px -12px rgba(150,128,240,.85);
   --font:"Cormorant Garamond",serif;
   --label-style:italic;--label-weight:300;--label-size:2.3rem;--label-spacing:.04em;
   --sheen:.5;
+}
+
+/* ---------------- Start screen ---------------- */
+.screen.start{justify-content:center}
+.start-body{
+  height:100%;width:100%;padding:0 28px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;color:var(--ui);
+}
+.start-orb{
+  position:relative;width:118px;height:118px;border-radius:50%;
+  background:var(--orb);box-shadow:var(--orb-shadow);margin-bottom:30px;
+  animation:idle 8s ease-in-out infinite;
+}
+.start-orb::after{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,rgba(255,255,255,.45),transparent 52%);
+  opacity:var(--sheen,.5);
+}
+@keyframes idle{0%,100%{transform:scale(.9)}50%{transform:scale(1.06)}}
+.brand{
+  font-family:var(--font);font-style:italic;font-weight:300;
+  font-size:3.1rem;line-height:1;letter-spacing:.01em;
+}
+.brand-sub{
+  font-family:var(--font);font-style:italic;font-size:1.05rem;
+  opacity:.72;margin-top:6px;letter-spacing:.04em;
+}
+.dur{margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.dur-cap{
+  font-family:var(--font);text-transform:uppercase;
+  letter-spacing:.32em;font-size:.66rem;opacity:.6;padding-left:.32em;
+}
+.stepper{display:flex;align-items:center;gap:24px}
+.step{
+  width:48px;height:48px;border-radius:50%;border:1px solid var(--hair);
+  background:transparent;color:var(--ui);font-size:1.5rem;line-height:1;
+  display:grid;place-items:center;cursor:pointer;
+  font-family:var(--font);transition:background 160ms ease,transform 120ms ease;
+}
+.step:active{transform:scale(.92);background:rgba(127,127,127,.12)}
+.dur-val{min-width:78px;display:flex;flex-direction:column;align-items:center}
+.dur-val b{font-family:var(--font);font-style:italic;font-weight:400;font-size:2.7rem;line-height:1}
+.dur-val small{font-family:var(--font);font-size:.82rem;opacity:.6;letter-spacing:.12em;margin-top:2px}
+.start-cta{
+  margin-top:40px;padding:14px 48px;border:none;border-radius:999px;
+  background:var(--btn);color:var(--btn-ink);box-shadow:var(--btn-glow);
+  font-family:var(--font);font-style:italic;font-size:1.55rem;letter-spacing:.02em;
+  cursor:pointer;transition:transform 160ms ease;
+}
+.start-cta:active{transform:scale(.96)}
+
+/* ---------------- App icon ---------------- */
+.icons-row{display:flex;gap:64px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.icon-card{display:flex;flex-direction:column;align-items:center;gap:18px}
+.iconmask{
+  border-radius:23%;overflow:hidden;background:#000;
+  box-shadow:0 20px 44px -16px rgba(0,0,0,.75),inset 0 0 0 1px rgba(255,255,255,.06);
+}
+.iconmask svg{display:block;width:100%;height:100%}
+.iconmask.big{width:184px;height:184px}
+.iconmask.s1{width:96px;height:96px}
+.iconmask.s2{width:60px;height:60px}
+.iconmask.s3{width:40px;height:40px}
+.iconmask.round{border-radius:50%}
+.sizes{display:flex;gap:18px;align-items:flex-end}
+.icon-name{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:1.5rem;color:#d7d0ef}
+.icon-meta{
+  font-family:"Cormorant Garamond",serif;font-size:.78rem;color:#857fa3;
+  text-transform:uppercase;letter-spacing:.16em;margin-top:-12px;
+}
+
+/* ---------------- Section headings ---------------- */
+.sect{width:100%;display:flex;flex-direction:column;align-items:center}
+.section-title{
+  font-family:"Cormorant Garamond",serif;font-style:italic;
+  font-size:1.9rem;color:#d7d0ef;margin:46px 0 4px;letter-spacing:.02em;
+}
+.section-sub{
+  font-family:"Cormorant Garamond",serif;color:#857fa3;
+  font-size:1.02rem;margin-bottom:26px;font-style:italic;
 }
 
 footer.legend{
@@ -202,14 +292,125 @@ footer.legend b{color:#cfc8ea;font-weight:500}
 </head>
 <body>
 
+  <!-- App-icon artwork, reused at several sizes via <use> -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <defs>
+      <radialGradient id="g-cel-bg" cx="50%" cy="30%" r="80%">
+        <stop offset="0%" stop-color="#332a78"/><stop offset="100%" stop-color="#15102f"/>
+      </radialGradient>
+      <radialGradient id="g-cel-orb" cx="38%" cy="32%" r="72%">
+        <stop offset="0%" stop-color="#f0e3ff"/><stop offset="52%" stop-color="#c3adf5"/><stop offset="100%" stop-color="#8f7be0"/>
+      </radialGradient>
+      <radialGradient id="g-aub-bg" cx="50%" cy="28%" r="82%">
+        <stop offset="0%" stop-color="#ffecd6"/><stop offset="100%" stop-color="#e89a78"/>
+      </radialGradient>
+      <radialGradient id="g-aub-orb" cx="40%" cy="32%" r="72%">
+        <stop offset="0%" stop-color="#fff7e2"/><stop offset="52%" stop-color="#ffd28a"/><stop offset="100%" stop-color="#f6a96a"/>
+      </radialGradient>
+
+      <!-- Celeste: night orb, two rings, three stars -->
+      <symbol id="icon-celeste" viewBox="0 0 512 512">
+        <rect width="512" height="512" fill="url(#g-cel-bg)"/>
+        <circle cx="256" cy="256" r="188" fill="none" stroke="#c4b6ff" stroke-opacity=".20" stroke-width="3"/>
+        <circle cx="256" cy="256" r="152" fill="none" stroke="#c4b6ff" stroke-opacity=".30" stroke-width="3"/>
+        <circle cx="256" cy="256" r="116" fill="url(#g-cel-orb)"/>
+        <circle cx="214" cy="212" r="34" fill="#ffffff" opacity=".22"/>
+        <g fill="#ffffff">
+          <g transform="translate(372 166) scale(1.3) translate(-12 -12)"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></g>
+          <g transform="translate(132 332) scale(1.0) translate(-12 -12)"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></g>
+          <g transform="translate(352 360) scale(0.82) translate(-12 -12)"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></g>
+        </g>
+      </symbol>
+
+      <!-- Aubade: dawn sun, two rings, three motes -->
+      <symbol id="icon-aubade" viewBox="0 0 512 512">
+        <rect width="512" height="512" fill="url(#g-aub-bg)"/>
+        <circle cx="256" cy="256" r="188" fill="none" stroke="#ffffff" stroke-opacity=".34" stroke-width="3"/>
+        <circle cx="256" cy="256" r="152" fill="none" stroke="#ffffff" stroke-opacity=".46" stroke-width="3"/>
+        <circle cx="256" cy="256" r="116" fill="url(#g-aub-orb)"/>
+        <circle cx="216" cy="214" r="34" fill="#ffffff" opacity=".30"/>
+        <g fill="#fff4d6">
+          <circle cx="372" cy="166" r="15"/>
+          <circle cx="132" cy="332" r="11"/>
+          <circle cx="352" cy="360" r="9"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
   <header class="page-head">
     <div class="eyebrow">Breathe · 4 · 7 · 8</div>
     <h1>Day &amp; night</h1>
     <p>One design in Cormorant italic, two colourways that follow the clock — <em>Aubade</em> through the day, <em>Celeste</em> in the evening. Both run on the real cadence: in four, hold seven, out eight.</p>
-    <div class="note">Rings swell on the in-breath and slip back under the orb at the bottom of the exhale · shapes ride the rings, orbiting the orb as you breathe out, then shrink away to nothing.</div>
+    <div class="note">Rings swell on the in-breath and slip back under the orb at the bottom of the exhale · the shapes orbit without pause — fading in and sweeping wide as you breathe in, holding, then shrinking away to nothing as you breathe out.</div>
   </header>
 
-  <div class="gallery">
+  <!-- ===== Start screen ===== -->
+  <section class="sect">
+    <div class="section-title">The start screen</div>
+    <div class="section-sub">Choose how long, then begin.</div>
+    <div class="gallery">
+
+      <!-- Aubade · start -->
+      <figure>
+        <div class="device t-aubade">
+          <div class="screen start">
+            <button class="mute" aria-hidden="true" tabindex="-1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+            </button>
+            <div class="start-body">
+              <div class="start-orb"></div>
+              <h2 class="brand">Breathe</h2>
+              <p class="brand-sub">4 · 7 · 8 — in · hold · out</p>
+              <div class="dur">
+                <span class="dur-cap">Session length</span>
+                <div class="stepper">
+                  <button class="step" data-step="-1" aria-label="Less time">&minus;</button>
+                  <div class="dur-val"><b class="mins">3</b><small>min</small></div>
+                  <button class="step" data-step="1" aria-label="More time">+</button>
+                </div>
+              </div>
+              <button class="start-cta">Begin</button>
+            </div>
+          </div>
+        </div>
+        <figcaption><div class="cname">Aubade <span style="opacity:.6">· daytime</span></div></figcaption>
+      </figure>
+
+      <!-- Celeste · start -->
+      <figure>
+        <div class="device t-celeste">
+          <div class="screen start">
+            <button class="mute" aria-hidden="true" tabindex="-1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+            </button>
+            <div class="start-body">
+              <div class="start-orb"></div>
+              <h2 class="brand">Breathe</h2>
+              <p class="brand-sub">4 · 7 · 8 — in · hold · out</p>
+              <div class="dur">
+                <span class="dur-cap">Session length</span>
+                <div class="stepper">
+                  <button class="step" data-step="-1" aria-label="Less time">&minus;</button>
+                  <div class="dur-val"><b class="mins">3</b><small>min</small></div>
+                  <button class="step" data-step="1" aria-label="More time">+</button>
+                </div>
+              </div>
+              <button class="start-cta">Begin</button>
+            </div>
+          </div>
+        </div>
+        <figcaption><div class="cname">Celeste <span style="opacity:.6">· evening</span></div></figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ===== Breathing session ===== -->
+  <section class="sect">
+    <div class="section-title">The breathing session</div>
+    <div class="section-sub">In four, hold seven, out eight.</div>
+    <div class="gallery">
 
     <!-- A · Aubade -->
     <figure>
@@ -231,7 +432,7 @@ footer.legend b{color:#cfc8ea;font-weight:500}
       <figcaption>
         <div class="cname">Aubade <span style="opacity:.6">· daytime</span></div>
         <div class="cmeta">Cormorant italic · warm dawn</div>
-        <div class="cdesc">A sun cresting at first light. Warm motes orbit the rings as you breathe out.</div>
+        <div class="cdesc">A sun cresting at first light. Warm motes orbit the rings, fading in with the breath and away at the bottom.</div>
         <div class="swatches"><i style="background:#fde9d4"></i><i style="background:#f6a96a"></i><i style="background:#fff4d8"></i><i style="background:#7a4636"></i></div>
       </figcaption>
     </figure>
@@ -256,17 +457,51 @@ footer.legend b{color:#cfc8ea;font-weight:500}
       <figcaption>
         <div class="cname">Celeste <span style="opacity:.6">· evening</span></div>
         <div class="cmeta">Cormorant italic · night sky</div>
-        <div class="cdesc">Stars orbit the rings on the exhale and dissolve as the breath empties.</div>
+        <div class="cdesc">Stars orbit without pause, fading in and sweeping wide on the in-breath, then dissolving on the out.</div>
         <div class="swatches"><i style="background:#241d52"></i><i style="background:#8f7be0"></i><i style="background:#e8d7ff"></i><i style="background:#ffffff"></i></div>
       </figcaption>
     </figure>
 
-  </div>
+    </div>
+  </section>
+
+  <!-- ===== App icon ===== -->
+  <section class="sect">
+    <div class="section-title">The app icon</div>
+    <div class="section-sub">On the home screen, at the sizes a launcher uses.</div>
+    <div class="icons-row">
+
+      <div class="icon-card">
+        <div class="iconmask big"><svg viewBox="0 0 512 512"><use href="#icon-celeste"/></svg></div>
+        <div class="sizes">
+          <div class="iconmask s1"><svg viewBox="0 0 512 512"><use href="#icon-celeste"/></svg></div>
+          <div class="iconmask s2"><svg viewBox="0 0 512 512"><use href="#icon-celeste"/></svg></div>
+          <div class="iconmask s3"><svg viewBox="0 0 512 512"><use href="#icon-celeste"/></svg></div>
+          <div class="iconmask s2 round"><svg viewBox="0 0 512 512"><use href="#icon-celeste"/></svg></div>
+        </div>
+        <div class="icon-name">Celeste</div>
+        <div class="icon-meta">night · recommended</div>
+      </div>
+
+      <div class="icon-card">
+        <div class="iconmask big"><svg viewBox="0 0 512 512"><use href="#icon-aubade"/></svg></div>
+        <div class="sizes">
+          <div class="iconmask s1"><svg viewBox="0 0 512 512"><use href="#icon-aubade"/></svg></div>
+          <div class="iconmask s2"><svg viewBox="0 0 512 512"><use href="#icon-aubade"/></svg></div>
+          <div class="iconmask s3"><svg viewBox="0 0 512 512"><use href="#icon-aubade"/></svg></div>
+          <div class="iconmask s2 round"><svg viewBox="0 0 512 512"><use href="#icon-aubade"/></svg></div>
+        </div>
+        <div class="icon-name">Aubade</div>
+        <div class="icon-meta">dawn</div>
+      </div>
+
+    </div>
+  </section>
 
   <footer class="legend">
-    Font locked to <b>Cormorant italic</b>. The app will pick the colourway by
-    time of day — <b>Aubade</b> from morning, <b>Celeste</b> in the evening.
-    Next: fold this into the live app. Tell me anything else to tune here first.
+    Font locked to <b>Cormorant italic</b>. The app picks the colourway by time
+    of day — <b>Aubade</b> from morning, <b>Celeste</b> in the evening. Pick an
+    icon above, then I’ll fold all of this into the live app.
   </footer>
 
 <script>
@@ -288,21 +523,12 @@ function frame(now){
   let acc=0, phase=PHASES[0], local=0;
   for(const p of PHASES){ if(t < acc+p.secs){ phase=p; local=(t-acc)/p.secs; break; } acc+=p.secs; }
 
-  let breath, exhaleP=0;
+  let breath;
   if(phase.type==='in')        breath = easeInOutSine(local);
   else if(phase.type==='hold') breath = 1;
-  else { breath = easeInOutSine(1-local); exhaleP = local; }
-
-  // shapes: appear quickly at the start of the exhale, shrink to nothing by the end
-  let star = 0;
-  if(phase.type==='out'){
-    const appear = Math.min(1, exhaleP/0.15);
-    const fade   = Math.pow(1-exhaleP, 0.9);
-    star = appear*fade;
-  }
+  else                         breath = easeInOutSine(1-local);
 
   root.style.setProperty('--breath', breath.toFixed(4));
-  root.style.setProperty('--star',   star.toFixed(4));
 
   for(const el of labels){
     if(el.textContent!==phase.name){ el.textContent=phase.name; }
@@ -358,6 +584,18 @@ document.querySelectorAll('.stage').forEach(stage=>{
 });
 
 requestAnimationFrame(frame);
+
+/* start-screen steppers (mock interactivity, 1–15 min) */
+document.querySelectorAll('.stepper').forEach(st=>{
+  const out = st.querySelector('.mins');
+  st.querySelectorAll('.step').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const v = Math.max(1, Math.min(15,
+        parseInt(out.textContent,10) + parseInt(btn.dataset.step,10)));
+      out.textContent = v;
+    });
+  });
+});
 </script>
 </body>
 </html>
