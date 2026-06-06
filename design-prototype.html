@@ -537,7 +537,10 @@ function frame(now){
 }
 
 /* ---- build rings + decorative shapes per stage ---- */
-const RING_SPEC = [ {k:.55, of:.9}, {k:1.0, of:.6}, {k:1.55, of:.32} ];
+// k = how far the ring expands beyond the orb at full inhale; of = peak opacity.
+// Spread kept modest so the outermost ring (and the shapes riding it) stay
+// within the frame as they orbit.
+const RING_SPEC = [ {k:.4, of:.9}, {k:.75, of:.62}, {k:1.1, of:.42} ];
 
 const SHAPE_SVG = {
   star:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></svg>',
@@ -559,8 +562,8 @@ document.querySelectorAll('.stage').forEach(stage=>{
   const type = stage.dataset.shape;
   const N = 9;
   for(let i=0;i<N;i++){
-    // ride the inner two rings so the shapes stay within the frame as they orbit
-    const ringK = RING_SPEC[i % 2].k;
+    // spread the shapes evenly across all three rings
+    const ringK = RING_SPEC[i % RING_SPEC.length].k;
     const size = (type==='petal'? 16:12) + Math.random()*10;
 
     const orbit = document.createElement('div');
