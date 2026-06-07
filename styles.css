@@ -10,6 +10,14 @@
   --orb-d: min(64vw, 300px);                      /* orb diameter at full inhale */
   --font: "Cormorant Garamond", Georgia, serif;
   --tap-min: 44px;
+
+  /* countdown numeral — breathes with the orb (see .count) */
+  --count-rise: 0.33;     /* floats up by this × orb-d at full inhale */
+  --count-drop: 0.00;     /* sits this × orb-d below centre at full exhale */
+  --count-squashX: 0.10;  /* widens at full inhale (balloon top) */
+  --count-squashY: 0.10;  /* flattens at full inhale */
+  --count-size-in: 2.0;   /* glyph size (rem) at full inhale */
+  --count-size-out: 3.5;  /* glyph size (rem) at full exhale */
 }
 
 /* ---------------- Colourways (class on <html>) ---------------- */
@@ -180,15 +188,22 @@ html.muted .mute .ico-off{ display:block; }
   opacity:var(--sheen,.5);
 }
 
-/* subtle per-phase countdown, centred over the orb and scaling WITH it.
-   Great Vibes has stable lining figures (Cormorant's old-style numerals wobble
-   vertically as the digit changes). */
+/* Subtle per-phase countdown, centred over the orb. It breathes WITH the orb:
+   upright Cormorant 700 with lining/tabular figures (stable, no vertical wobble);
+   the glyph grows on the exhale and shrinks on the inhale (size lerp), floats up
+   through the inhale + hold, and squashes shorter-and-wider at the top of the
+   breath like it's riding an inflating balloon. */
 .count{
   position:absolute; inset:0; display:grid; place-items:center; pointer-events:none;
-  font-family:"Great Vibes", cursive; font-weight:400;
-  font-size:2.9rem; color:var(--orb-ink); opacity:.42;
+  font-family:"Cormorant Garamond", serif; font-weight:700; font-style:normal;
+  color:var(--orb-ink); opacity:.10; line-height:1;
   font-variant-numeric:lining-nums tabular-nums;
-  transform:scale(var(--orb-scale));
+  font-size:calc((var(--count-size-out) * (1 - var(--breath)) + var(--count-size-in) * var(--breath)) * 1rem);
+  transform:
+    translateY(calc((var(--count-drop) * (1 - var(--breath)) - var(--count-rise) * var(--breath)) * var(--orb-d)))
+    scale(var(--orb-scale))
+    scaleX(calc(1 + var(--breath) * var(--count-squashX)))
+    scaleY(calc(1 - var(--breath) * var(--count-squashY)));
 }
 
 .phase-label{ font-style:italic; font-weight:300; font-size:2.4rem; letter-spacing:.04em; }

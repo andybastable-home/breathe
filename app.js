@@ -79,7 +79,9 @@ function syncThemeColor() {
 // ============================================================
 // Decorative stage: 3 rings + 9 orbiting shapes (stars / motes)
 // ============================================================
-const RING_SPEC = [ { k: .4, of: .9 }, { k: .75, of: .62 }, { k: 1.1, of: .42 } ];
+// Tight inner spacing that opens out to the wider outer ring (k = expansion past
+// the orb at full inhale; of = peak opacity).
+const RING_SPEC = [ { k: .22, of: .92 }, { k: .6, of: .64 }, { k: 1.18, of: .4 } ];
 const SHAPE_SVG = {
   star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></svg>',
   mote: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>',
@@ -143,7 +145,7 @@ function advancePhase(now) {
   session.phaseIdx = (session.phaseIdx + 1) % PHASES.length;
   session.phaseStartTs = now;
   phaseLabel.textContent = PHASES[session.phaseIdx].name;
-  ding();
+  ding(PHASES[session.phaseIdx].type);
   vibrate();
 }
 
@@ -209,7 +211,11 @@ function ensureAudio() {
   if (!audioCtx) audioCtx = new Ctx();
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
-function ding() {
+// Subtly transpose the whole chime by phase so each one has its own colour:
+// inhale lifts a step up, hold settles on the root, exhale steps down. ±2
+// semitones (2^(±2/12)) — gentle, still clearly the same instrument.
+const PHASE_PITCH = { in: 1.1225, hold: 1, out: 0.8909 };
+function ding(phaseType) {
   if (root.classList.contains('muted') || !audioCtx) return;
   const t = audioCtx.currentTime;
 
@@ -221,8 +227,9 @@ function ding() {
   filter.connect(audioCtx.destination);
 
   // Two quiet sine partials a perfect fifth apart — a calm, open chime, with a
-  // slow attack (no click) and a long gentle decay.
-  const partials = [ { freq: 432, peak: 0.09 }, { freq: 648, peak: 0.035 } ];
+  // slow attack (no click) and a long gentle decay. The base note shifts per phase.
+  const base = 432 * (PHASE_PITCH[phaseType] || 1);
+  const partials = [ { freq: base, peak: 0.09 }, { freq: base * 1.5, peak: 0.035 } ];
   for (const { freq, peak } of partials) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();

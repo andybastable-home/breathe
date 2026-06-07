@@ -6,7 +6,7 @@
 <title>Breathe — design prototypes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Great+Vibes&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Great+Vibes&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    Breathe — design prototype gallery
@@ -21,6 +21,10 @@
   /* shared breath state, written by JS every frame */
   --breath: 0;   /* 0 = fully exhaled (orb small), 1 = fully inhaled (orb large) */
   --orb-scale: calc(.52 + var(--breath) * .48); /* orb diameter factor */
+  /* countdown numeral — breathes with the orb (see .count) */
+  --count-rise: 0.33; --count-drop: 0.00;
+  --count-squashX: 0.10; --count-squashY: 0.10;
+  --count-size-in: 2.0; --count-size-out: 3.5;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100%}
@@ -148,15 +152,21 @@ figure{display:flex;flex-direction:column;align-items:center;gap:18px;width:300p
   opacity:var(--sheen,.5);
 }
 
-/* subtle per-phase countdown, centred over the orb; scales WITH the orb.
-   Great Vibes has stable lining figures (Cormorant's old-style numerals
-   wobble vertically as the digit changes). */
+/* Subtle per-phase countdown, centred over the orb, breathing WITH it:
+   upright Cormorant 700 (stable lining figures); the glyph grows on the exhale
+   and shrinks on the inhale, floats up through the inhale + hold, and squashes
+   shorter-and-wider at the top like it's riding an inflating balloon. */
 .count{
   position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
-  font-family:"Great Vibes",cursive;font-weight:400;
-  font-size:2.7rem;color:var(--orb-ink);opacity:.42;
+  font-family:"Cormorant Garamond",serif;font-weight:700;font-style:normal;
+  color:var(--orb-ink);opacity:.10;line-height:1;
   font-variant-numeric:lining-nums tabular-nums;
-  transform:scale(var(--orb-scale));
+  font-size:calc((var(--count-size-out) * (1 - var(--breath)) + var(--count-size-in) * var(--breath)) * 1rem);
+  transform:
+    translateY(calc((var(--count-drop) * (1 - var(--breath)) - var(--count-rise) * var(--breath)) * 150px))
+    scale(var(--orb-scale))
+    scaleX(calc(1 + var(--breath) * var(--count-squashX)))
+    scaleY(calc(1 - var(--breath) * var(--count-squashY)));
 }
 
 /* phase label */
@@ -560,7 +570,7 @@ function frame(now){
 // k = how far the ring expands beyond the orb at full inhale; of = peak opacity.
 // Spread kept modest so the outermost ring (and the shapes riding it) stay
 // within the frame as they orbit.
-const RING_SPEC = [ {k:.4, of:.9}, {k:.75, of:.62}, {k:1.1, of:.42} ];
+const RING_SPEC = [ {k:.22, of:.92}, {k:.6, of:.64}, {k:1.18, of:.4} ];
 
 const SHAPE_SVG = {
   star:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 6.4 4.7 10.2 11.1 11.1C16.7 12 12.9 15.8 12 22.2 11.1 15.8 7.3 12 .9 11.1 7.3 10.2 11.1 6.4 12 0z"/></svg>',
